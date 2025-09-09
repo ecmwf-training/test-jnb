@@ -1,0 +1,69 @@
+name: PR Artifact Preview
+
+on:
+  pull_request:
+    branches: ["develop"]
+
+# One preview per PR at a time; won’t cancel deploys
+concurrency:
+  group: pr-preview-${{ github.event.number }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write # for the comment; remove if you don't want it
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r ci/requirements.txt
+
+      # Harden previews from forks: disable notebook execution regardless of repo config
+      - name: Write preview config (disable execution)
+        run: |
+          printf "execute:\n  execute_notebooks: \"off\"\n  allow_errors: false\n" > _config_preview.yml
+
+      - name: Build the book (preview)
+        run: jupyter-book build --config _config_preview.yml .
+
+      # Official Pages-formatted artifact (visible under Checks → Artifacts)
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_build/html
+
+      # Optional: a convenient zip for quick local viewing
+      - name: Upload zipped site
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-preview-site
+          path: ./_build/html
+
+      - name: Comment with instructions
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: [
+                "🔎 **Preview artifact is ready.**",
+                "",
+                `• Open **[this workflow run](${runUrl})** → **Artifacts** → download **pr-preview-site** (or the Pages artifact).`,
+                "• Unzip and open `index.html` locally to review the site.",
+                "",
+                "_Note: Notebook execution is disabled in PR previews for security._"
+              ].join("\n")
+            });
