@@ -1,0 +1,52 @@
+name: PR Preview (fork-safe)
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, labeled]
+
+permissions:
+  contents: write # push preview to gh-pages
+  pull-requests: write # comment/status if your action does so
+
+concurrency: preview-${{ github.event.pull_request.number }}
+
+jobs:
+  build-and-publish:
+    # gate: only run when the PR carries the label
+    if: contains(join(github.event.pull_request.labels.*.name, ','), 'preview-ok')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR HEAD (from fork)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          submodules: true
+          persist-credentials: false # don't hand forked code your token
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: pip install -r ci/requirements.txt
+
+      # Build a SAFE preview (no notebook execution)
+      - name: Write preview config (disable execution)
+        run: |
+          cat > _config_preview.yml <<'YAML'
+          execute:
+            execute_notebooks: "off"
+            allow_errors: false
+          YAML
+
+      - name: Build Jupyter Book (preview)
+        run: jupyter-book build --config _config_preview.yml .
+
+      - name: Publish preview (to gh-pages/pr-preview/pr-<n>/)
+        uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: _build/html
+          preview-branch: gh-pages
+          umbrella-dir: pr-preview
+          action: auto
