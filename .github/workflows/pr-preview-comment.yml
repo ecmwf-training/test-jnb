@@ -1,0 +1,40 @@
+name: Comment when PR preview is ready
+
+on:
+  workflow_run:
+    workflows: ["PR Artifact Preview"] # must match your PR workflow name
+    types: [completed]
+
+permissions:
+  issues: write # needed to create a PR comment
+  contents: read
+
+jobs:
+  comment:
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      (github.event.workflow_run.pull_requests && github.event.workflow_run.pull_requests.length > 0)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.workflow_run.pull_requests[0]
+            const runId = context.payload.workflow_run.id
+            const runUrl = context.payload.workflow_run.html_url
+              || `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              body: [
+                "🔎 **Preview artifact is ready.**",
+                "",
+                `• Open **[this workflow run](${runUrl})** → **Artifacts** → download **pr-preview-site** (or the Pages artifact).`,
+                "• Unzip and open `index.html` locally to review the site.",
+                "",
+                "_Note: Notebook execution is disabled in PR previews for security._"
+              ].join("\n")
+            })
