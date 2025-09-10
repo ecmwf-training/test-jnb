@@ -1,4 +1,4 @@
-name: PR Artifact Preview
+name: PR Preview
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   preview:
-    name: ⬇️ Download artifact
+    name: ⬇️ Download Artifact
     runs-on: ubuntu-latest
     permissions:
       contents: read
