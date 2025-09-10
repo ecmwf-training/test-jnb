@@ -1,0 +1,35 @@
+name: PR Preview Instructions
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  issues: write   # to create/update a PR comment
+  contents: read
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find existing comment
+        id: fc
+        uses: peter-evans/find-comment@v3
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: 'Preview artifact is ready.'
+
+      - name: Create or update comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          edit-mode: replace
+          body: |
+            🔎 **Preview artifact is ready.**
+
+            • Open **[Checks for this PR](https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}/checks)** → **Artifacts** → download **pr-preview-site** (or the Pages artifact).  
+            • Unzip and open `index.html` locally to review the site.
+
+            _Note: Notebook execution is disabled in PR previews for security._

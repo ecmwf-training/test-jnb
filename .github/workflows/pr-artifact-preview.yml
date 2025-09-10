@@ -2,18 +2,17 @@ name: PR Artifact Preview
 
 on:
   pull_request:
-    branches: ["develop"]
+    branches: ['develop']
 
-# One preview per PR at a time; won’t cancel deploys
 concurrency:
-  group: pr-preview-${{ github.event.number }}
+  group: pr-preview-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: read   # minimal; no writes needed
     steps:
       - uses: actions/checkout@v4
         with:
@@ -21,13 +20,13 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-          cache: "pip"
+          python-version: '3.11'
+          cache: 'pip'
 
       - name: Install dependencies
         run: pip install -r ci/requirements.txt
 
-      # Harden previews from forks: disable notebook execution regardless of repo config
+      # Harden previews from forks: disable execution regardless of repo config
       - name: Write preview config (disable execution)
         run: |
           printf "execute:\n  execute_notebooks: \"off\"\n  allow_errors: false\n" > _config_preview.yml
@@ -35,15 +34,30 @@ jobs:
       - name: Build the book (preview)
         run: jupyter-book build --config _config_preview.yml .
 
-      # Official Pages-formatted artifact (visible under Checks → Artifacts)
+      # Upload a Pages-formatted artifact (shows under Checks → Artifacts)
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./_build/html
 
-      # Optional: a convenient zip for quick local viewing
+      # Optional: also upload a zip (convenient for local testing)
       - name: Upload zipped site
         uses: actions/upload-artifact@v4
         with:
           name: pr-preview-site
           path: ./_build/html
+
+      # Always provide instructions in the job summary (works for forks)
+      - name: Write Summary
+        run: |
+          PR=${{ github.event.pull_request.number }}
+          REPO=${{ github.repository }}
+          CHECKS_URL="https://github.com/${REPO}/pull/${PR}/checks"
+          {
+            echo "🔎 **Preview artifact is ready.**"
+            echo
+            echo "• Open **[Checks for this PR](${CHECKS_URL})** → **Artifacts** → download **pr-preview-site** (or the Pages artifact)."
+            echo "• Unzip and open \`index.html\` locally to review the site."
+            echo
+            echo "_Note: Notebook execution is disabled in PR previews for security._"
+          } >> "$GITHUB_STEP_SUMMARY"
