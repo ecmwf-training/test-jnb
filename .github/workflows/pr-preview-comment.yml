@@ -2,12 +2,14 @@ name: Comment when PR preview is ready
 
 on:
   workflow_run:
-    workflows: ["PR Artifact Preview"] # must match your PR workflow name
+    workflows: ['PR Artifact Preview']   # must equal your PR preview workflow name
     types: [completed]
 
 permissions:
-  issues: write # needed to create a PR comment
+  issues: write
   contents: read
+  pull-requests: read
+  actions: read
 
 jobs:
   comment:
@@ -26,27 +28,62 @@ jobs:
               return;
             }
 
-            // Try to read PR number from payload, then fall back to commit association
             let prNumber = run.pull_requests?.[0]?.number;
 
+            // --- 1) Best source: PRs attached to this workflow run ---
             if (!prNumber) {
-              // Fast path: search by head SHA
+              const prsForRun = await github.rest.actions.listWorkflowRunPullRequests({
+                owner, repo, run_id: run.id,
+              });
+              if (prsForRun.data?.length > 0) {
+                prNumber = prsForRun.data[0].number;
+                core.notice(`Found PR via actions.listWorkflowRunPullRequests: #${prNumber}`);
+              }
+            }
+
+            // --- 2) Next best: find by head repo + branch (works for forks) ---
+            if (!prNumber) {
+              // Try to reconstruct "<forkOwner>:<branch>"
+              // run.head_repository is sometimes present on the run payload;
+              // if not, fall back to assuming same repo owner (works for same-repo PRs).
+              let headOwner = run.head_repository?.owner?.login;
+              const headBranch = run.head_branch;
+              if (!headOwner) {
+                // Try to refetch the run with expanded fields
+                try {
+                  const runRef = await github.rest.actions.getWorkflowRun({
+                    owner, repo, run_id: run.id,
+                  });
+                  headOwner = runRef.data.head_repository?.owner?.login;
+                } catch (e) {
+                  core.notice(`Could not refetch run for head_repository: ${e.message}`);
+                }
+              }
+              if (!headOwner) headOwner = owner; // same-repo fallback
+
+              if (headOwner && headBranch) {
+                const headRef = `${headOwner}:${headBranch}`;
+                const list = await github.rest.pulls.list({
+                  owner, repo, state: 'all', head: headRef, per_page: 1,
+                });
+                if (list.data?.length > 0) {
+                  prNumber = list.data[0].number;
+                  core.notice(`Found PR via pulls.list head=${headRef}: #${prNumber}`);
+                }
+              } else {
+                core.notice('head_owner/head_branch missing; cannot use pulls.list head filter.');
+              }
+            }
+
+            // --- 3) Last resort: search by head SHA in this repo (may fail for forks) ---
+            if (!prNumber) {
               const search = await github.rest.search.issuesAndPullRequests({
                 q: `repo:${owner}/${repo} is:pr sha:${run.head_sha}`,
                 per_page: 1,
               });
               if (search.data.total_count > 0) {
                 prNumber = search.data.items[0].number;
-              }
-            }
-
-            if (!prNumber) {
-              // Fallback: list PRs associated with the commit
-              const assoc = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-                owner, repo, commit_sha: run.head_sha,
-              });
-              if (assoc.data?.length > 0) {
-                prNumber = assoc.data[0].number;
+                core.notice(`Found PR via search.sha: #${prNumber}`);
               }
             }
 
@@ -60,7 +97,7 @@ jobs:
             await github.rest.issues.createComment({
               owner,
               repo,
-              issue_number: prNumber,  // <-- use the resolved PR number (not context.issue)
+              issue_number: prNumber,
               body: [
                 "🔎 **Preview artifact is ready.**",
                 "",
