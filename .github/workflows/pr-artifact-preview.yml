@@ -9,24 +9,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-upload:
+  preview:
+    name: 📦 Preview — download artifact
     runs-on: ubuntu-latest
     permissions:
-      contents: read   # minimal; no writes needed
+      contents: read
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
+        with: { submodules: true }
 
       - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
+        with: { python-version: '3.11', cache: 'pip' }
 
       - name: Install dependencies
         run: pip install -r ci/requirements.txt
 
-      # Harden previews from forks: disable execution regardless of repo config
       - name: Write preview config (disable execution)
         run: |
           printf "execute:\n  execute_notebooks: \"off\"\n  allow_errors: false\n" > _config_preview.yml
@@ -34,21 +31,18 @@ jobs:
       - name: Build the book (preview)
         run: jupyter-book build --config _config_preview.yml .
 
-      # Upload a Pages-formatted artifact (shows under Checks → Artifacts)
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./_build/html
 
-      # Optional: also upload a zip (convenient for local testing)
       - name: Upload zipped site
         uses: actions/upload-artifact@v4
         with:
           name: pr-preview-site
           path: ./_build/html
 
-      # Always provide instructions in the job summary (works for forks)
-      - name: Write Summary
+      - name: Write Summary (how to open)
         run: |
           PR=${{ github.event.pull_request.number }}
           REPO=${{ github.repository }}
