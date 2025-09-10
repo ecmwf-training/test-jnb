@@ -46,7 +46,8 @@ jobs:
             echo "🔎 **Preview artifact is ready.**"
             echo
             echo "1. In the section **Artifacts**, download **pr-preview-site** (ZIP)."
-            echo "2. Unzip it and open \`index.html\` locally to review the site."
+            echo "2. Unzip the file."
+            echo "3. Open \`index.html\` locally in your browser."
             echo
             echo "_Note: Notebook execution is disabled in PR previews for security._"
           } >> "$GITHUB_STEP_SUMMARY"
