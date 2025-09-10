@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   preview:
-    name: ⬇️ Download Artifact
+    name: 📦 Create Artifact
     runs-on: ubuntu-latest
     permissions:
       contents: read
