@@ -10,6 +10,7 @@
 ## Previewing this PR
 
 1. Go to the PR’s **Checks** tab.
-2. Click **Artifacts**, then download **pr-preview-site** (ZIP file).
+2. Click on **PR Preview**.
+2. Scroll down to **Artifacts**, then download **pr-preview-site** (ZIP file).
 4. Unzip the file
-4. Open `index.html` locally in your browser.
+5. Open `index.html` locally in your browser.
