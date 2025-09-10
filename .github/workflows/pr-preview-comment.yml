@@ -17,21 +17,56 @@ jobs:
       - uses: actions/github-script@v8
         with:
           script: |
-            const pr = context.payload.workflow_run.pull_requests[0]
-            const runId = context.payload.workflow_run.id
-            const runUrl = context.payload.workflow_run.html_url
-              || `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`
+            const run = context.payload.workflow_run;
+            const { owner, repo } = context.repo;
+
+            // Only handle preview runs from pull_request events
+            if (run.event !== 'pull_request') {
+              core.notice(`workflow_run event was '${run.event}', not 'pull_request' — skipping comment.`);
+              return;
+            }
+
+            // Try to read PR number from payload, then fall back to commit association
+            let prNumber = run.pull_requests?.[0]?.number;
+
+            if (!prNumber) {
+              // Fast path: search by head SHA
+              const search = await github.rest.search.issuesAndPullRequests({
+                q: `repo:${owner}/${repo} is:pr sha:${run.head_sha}`,
+                per_page: 1,
+              });
+              if (search.data.total_count > 0) {
+                prNumber = search.data.items[0].number;
+              }
+            }
+
+            if (!prNumber) {
+              // Fallback: list PRs associated with the commit
+              const assoc = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                owner, repo, commit_sha: run.head_sha,
+              });
+              if (assoc.data?.length > 0) {
+                prNumber = assoc.data[0].number;
+              }
+            }
+
+            if (!prNumber) {
+              core.notice('Could not determine PR number for this run — skipping comment.');
+              return;
+            }
+
+            const runUrl = run.html_url || `https://github.com/${owner}/${repo}/actions/runs/${run.id}`;
 
             await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+              owner,
+              repo,
+              issue_number: prNumber,  // <-- use the resolved PR number (not context.issue)
               body: [
                 "🔎 **Preview artifact is ready.**",
                 "",
                 `• Open **[this workflow run](${runUrl})** → **Artifacts** → download **pr-preview-site** (or the Pages artifact).`,
-                "• Unzip and open `index.html` locally to review the site.",
+                "• Unzip and open \`index.html\` locally to review the site.",
                 "",
                 "_Note: Notebook execution is disabled in PR previews for security._"
               ].join("\n")
-            })
+            });
