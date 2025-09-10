@@ -1,11 +1,8 @@
-name: build-deploy-book
+name: Build and Deploy Book
 
 # Only run this when the main branch changes
 on:
   push:
-    branches:
-      - "develop"
-  pull_request:
     branches:
       - "develop"
 
