@@ -8,22 +8,15 @@ on:
 
 permissions:
   issues: write
-  pull-requests: read
-  contents: read
+  pull-requests: write
 
 jobs:
   remove-labels:
     runs-on: ubuntu-latest
     steps:
       - name: Remove all labels from PR when new commits are pushed
-        uses: actions/github-script@v6
+        uses: mondeja/remove-labels-gh-action@v2
         with:
-          script: |
-            const pr = github.context.payload.pull_request;
-            if (!pr) throw new Error('No pull_request in context');
-            await github.rest.issues.removeAllLabels({
-              owner: github.context.repo.owner,
-              repo: github.context.repo.repo,
-              issue_number: pr.number
-            });
-            console.log(`Removed all labels from PR #${pr.number}`);
+          token: ${{ secrets.GITHUB_TOKEN }}
+          labels: |
+            ci:approved-to-run
