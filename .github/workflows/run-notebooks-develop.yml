@@ -1,0 +1,24 @@
+name: Run notebooks on develop branch
+
+on:
+  # Allow workflow to be dispatched on demand
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to development branch'
+        required: false
+        default: 'develop'
+
+jobs:
+  run-notebooks-manual:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: arc-runner-set
+    name: Run full notebook tests (manual)
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - run: echo "🎉 Running notebooks on ARC (manual dispatch)"
+      - run: head -1 intro-jupyter-template.md
+ 
