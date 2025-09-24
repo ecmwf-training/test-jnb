@@ -1,26 +1,26 @@
-name: Actions Runner Controller Demo
+name: Run notebooks on approval
 
 on:
-  push:
-    branches:
-      - "develop"
-  pull_request:
-    types: [labeled, synchronize, reopened]
-    branches:
-    - 'develop'
+  pull_request_target:
+    types: [labeled]
+    branches: [develop]
 
   # Allow workflow to be dispatched on demand
   workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to development branch'
+        required: false
+        default: 'develop'
 
 jobs:
   run-notebooks:
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'ci:approved-to-run') }}
+    if: github.event.label.name == 'ci:approved-to-run'
     runs-on: arc-runner-set
     steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.pull_request.head.repo.full_name }}
+        ref: ${{ github.event.pull_request.head.sha }}
+        persist-credentials: false
     - run: echo "🎉 This job uses runner scale set runners!"
-
-  do-not-run-notebooks:
-    if: ${{ ! contains(github.event.pull_request.labels.*.name, 'ci:approved-to-run') }}
-    runs-on: ubuntu-latest
-    steps:
-    - run: echo "⚠️ Skipped. Add the label 'ci:approved-to-run' to run this job."
