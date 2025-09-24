@@ -1,20 +1,13 @@
-name: Run notebooks on approval
+name: Run notebooks on PR
 
 on:
   pull_request_target:
     types: [labeled]
     branches: [develop]
 
-  # Allow workflow to be dispatched on demand
-  workflow_dispatch:
-    inputs:
-      ref:
-        description: 'Git ref to development branch'
-        required: false
-        default: 'develop'
 
 jobs:
-  run-notebooks:
+  run-notebooks-label:
     if: github.event.label.name == 'ci:approved-to-run'
     runs-on: arc-runner-set
     steps:
@@ -23,4 +16,5 @@ jobs:
         repository: ${{ github.event.pull_request.head.repo.full_name }}
         ref: ${{ github.event.pull_request.head.sha }}
         persist-credentials: false
-    - run: echo "🎉 This job uses runner scale set runners!"
+    - run: echo "🎉 Running notebooks on ARC (manual dispatch)"
+    - run: head -1 intro-jupyter-template.md
