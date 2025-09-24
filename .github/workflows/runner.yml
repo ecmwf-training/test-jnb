@@ -1,11 +1,20 @@
 name: Actions Runner Controller Demo
 
 on:
+  pull_request:
+    types: [labeled, synchronize, reopened]
+  
   workflow_dispatch:
 
 jobs:
-  Explore-GitHub-Actions:
-    # You need to use the INSTALLATION_NAME from the previous step
+  run-notebooks:
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'ci:approved-to-run') }}
     runs-on: arc-runner-set
     steps:
     - run: echo "🎉 This job uses runner scale set runners!"
+
+  do-not-run-notebooks:
+    if: ${{ ! contains(github.event.pull_request.labels.*.name, 'ci:approved-to-run') }}
+    runs-on: ubuntu-latest
+    steps:
+    - run: echo "⚠️ Skipped. Add the label 'ci:approved-to-run' to run this job."
