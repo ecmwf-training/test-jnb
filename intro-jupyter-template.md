@@ -1,4 +1,4 @@
-# My new version 3
+# My new version 4
 
 This is a small sample book to give you a feel for how book content is
 structured.
