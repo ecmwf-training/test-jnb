@@ -5,16 +5,15 @@ on:
     types: [labeled]
     branches: [develop]
 
-
 jobs:
   run-notebooks-label:
-    if: github.event.label.name == 'ci:approved-to-run'
+    if: github.event.label.name == 'approved-for-ci'
     runs-on: arc-runner-set
     steps:
-    - uses: actions/checkout@v4
-      with:
-        repository: ${{ github.event.pull_request.head.repo.full_name }}
-        ref: ${{ github.event.pull_request.head.sha }}
-        persist-credentials: false
-    - run: echo "🎉 Running notebooks on ARC (manual dispatch)"
-    - run: head -1 intro-jupyter-template.md
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - run: echo "🎉 Running notebooks on ARC (manual dispatch)"
+      - run: head -1 intro-jupyter-template.md
